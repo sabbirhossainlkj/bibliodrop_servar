@@ -1,3 +1,4 @@
+const { ObjectId } = require("mongodb");
 const express = require("express");
 const app = express();
 const port = 5000;
@@ -52,6 +53,27 @@ async function run() {
       const book = req.body;
       const result = await addBooksCollection.insertOne(book);
       res.send(result);
+    });
+
+    // delete book data
+    app.delete("/api/books/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const query = {
+          _id: new ObjectId(id),
+        };
+
+        const result = await addBooksCollection.deleteOne(query);
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: "Failed to delete book",
+          error: error.message,
+        });
+      }
     });
 
     // Send a ping to confirm a successful connection
