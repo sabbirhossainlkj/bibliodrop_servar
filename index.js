@@ -30,7 +30,14 @@ async function run() {
     await client.connect();
 
     const database = client.db("BiblioDrop_db");
-    const booksCollection = database.collection("books");
+    const addBooksCollection = database.collection("books");
+
+    // libararian books data
+    app.post('/api/books', async(req, res) => {
+       const book = req.body
+       const result = await addBooksCollection.insertOne(book)
+       res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
