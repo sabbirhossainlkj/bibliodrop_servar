@@ -33,11 +33,26 @@ async function run() {
     const addBooksCollection = database.collection("books");
 
     // libararian books data
-    app.post('/api/books', async(req, res) => {
-       const book = req.body
-       const result = await addBooksCollection.insertOne(book)
-       res.send(result)
-    })
+    // get all books
+    app.get("/api/books", async (req, res) => {
+      try {
+        const result = await addBooksCollection.find().toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: "Failed to fetch books",
+          error: error.message,
+        });
+      }
+    });
+
+    // post book data
+    app.post("/api/books", async (req, res) => {
+      const book = req.body;
+      const result = await addBooksCollection.insertOne(book);
+      res.send(result);
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
