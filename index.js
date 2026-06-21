@@ -34,6 +34,73 @@ async function run() {
     const addBooksCollection = database.collection("books");
 
     // libararian books data
+    // home 6 card show
+    app.get("/api/featured", async (req, res) => {
+      const result = await addBooksCollection.find().limit(6).toArray();
+      res.json(result);
+    });
+    // Get all books with search, filter and sort
+    app.get("/api/books", async (req, res) => {
+      try {
+        const { search, category, status, sortBy, order } = req.query;
+
+        // Filter
+        let query = {};
+
+        // Search by title or author
+        if (search) {
+          query.$or = [
+            {
+              title: {
+                $regex: search,
+                $options: "i",
+              },
+            },
+            {
+              author: {
+                $regex: search,
+                $options: "i",
+              },
+            },
+          ];
+        }
+
+        // Category filter
+        if (category) {
+          query.category = category;
+        }
+
+        // Status filter
+        if (status) {
+          query.status = status;
+        }
+
+        // Sort
+        let sortOption = {};
+
+        if (sortBy) {
+          sortOption[sortBy] = order === "desc" ? -1 : 1;
+        }
+
+        const books = await addBooksCollection
+          .find(query)
+          .sort(sortOption)
+          .toArray();
+
+        res.status(200).send({
+          success: true,
+          total: books.length,
+          data: books,
+        });
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: "Failed to load books",
+          error: error.message,
+        });
+      }
+    });
+
     // book details page
 
     app.get("/api/books/:id", async (req, res) => {
@@ -102,7 +169,7 @@ async function run() {
     });
 
     // edit book data
-    const { ObjectId } = require("mongodb");
+    // kaj pending ase
 
     app.patch("/api/books/:id", async (req, res) => {
       try {
