@@ -34,6 +34,31 @@ async function run() {
     const addBooksCollection = database.collection("books");
 
     // libararian books data
+    // book details page
+
+    app.get("/api/books/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).send({ message: "Invalid Book ID format" });
+        }
+
+        const query = { _id: new ObjectId(id) };
+        const result = await addBooksCollection.findOne(query);
+
+        // Jodi boi ti database e na paoya jay
+        if (!result) {
+          return res.status(404).send({ message: "Book not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching book details:", error);
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
+
     // get all books
     app.get("/api/books", async (req, res) => {
       try {
@@ -71,6 +96,33 @@ async function run() {
         res.status(500).send({
           success: false,
           message: "Failed to delete book",
+          error: error.message,
+        });
+      }
+    });
+
+    // edit book data
+    const { ObjectId } = require("mongodb");
+
+    app.patch("/api/books/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const updateBook = req.body;
+
+        const result = await addBooksCollection.updateOne(
+          {
+            _id: new ObjectId(id),
+          },
+          {
+            $set: updateBook,
+          },
+        );
+
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({
+          success: false,
+          message: "Failed to update book",
           error: error.message,
         });
       }
