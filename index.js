@@ -124,7 +124,7 @@ async function run() {
         if (sortBy) sortOption[sortBy] = order === "desc" ? -1 : 1;
 
         const pageNum = Math.max(1, parseInt(page) || 1);
-        const limitNum = Math.min(50, Math.max(1, parseInt(limit) || 9));
+        const limitNum = Math.min(1000, Math.max(1, parseInt(limit) || 9));
         const skip = (pageNum - 1) * limitNum;
 
         const [totalItems, books] = await Promise.all([
