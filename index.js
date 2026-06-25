@@ -57,7 +57,7 @@ const verifyLibrarianOrInternal = (req, res, next) => {
 };
 
 app.get("/", (req, res) => {
-  res.send("Hello bangladesh!");
+  res.send("Server is running smoothly!");
 });
 
 const uri = process.env.MONGODB_URI;
