@@ -12,7 +12,6 @@ app.use(cookieParser());
 
 const { ObjectId, MongoClient, ServerApiVersion } = require("mongodb");
 
-// Issue JWT
 app.post("/api/auth/token", (req, res) => {
   const { email, role } = req.body;
   if (!email) return res.status(400).send({ message: "Email required" });
@@ -20,13 +19,11 @@ app.post("/api/auth/token", (req, res) => {
   res.send({ success: true, token });
 });
 
-// Clear JWT
 app.post("/api/auth/logout", (req, res) => {
   res.clearCookie("token");
   res.send({ success: true });
 });
 
-// JWT middleware - reads from Authorization: Bearer header
 const verifyToken = (req, res, next) => {
   const auth = req.headers.authorization;
   const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
@@ -54,14 +51,13 @@ const verifyLibrarian = (req, res, next) => {
   next();
 };
 
-// Allows requests that either pass verifyToken+verifyLibrarian OR carry the internal secret
 const verifyLibrarianOrInternal = (req, res, next) => {
   if (req.headers["x-internal-secret"] === process.env.INTERNAL_SECRET) return next();
   return verifyToken(req, res, () => verifyLibrarian(req, res, next));
 };
 
 app.get("/", (req, res) => {
-  res.send("Hello from bangladesh!");
+  res.send("Hello bangladesh!");
 });
 
 const uri = process.env.MONGODB_URI;
@@ -85,13 +81,11 @@ async function run() {
     const deliveriesCollection = database.collection("deliveries");
     const reviewsCollection = database.collection("reviews");
 
-    // home 6 card show
     app.get("/api/featured", async (req, res) => {
       const result = await addBooksCollection.find({ status: "Published" }).limit(6).toArray();
       res.json(result);
     });
 
-    // Get all books with search, filter, sort, and pagination
     app.get("/api/books", async (req, res) => {
       try {
         const { search, category, status, sortBy, order, librarianEmail, page, limit, minFee, maxFee, available } = req.query;
@@ -144,7 +138,6 @@ async function run() {
       }
     });
 
-    // book details
     app.get("/api/books/:id", async (req, res) => {
       try {
         const id = req.params.id;
@@ -166,14 +159,12 @@ async function run() {
       }
     });
 
-    // post book
     app.post("/api/books", verifyToken, verifyLibrarian, async (req, res) => {
       const book = req.body;
       const result = await addBooksCollection.insertOne(book);
       res.send(result);
     });
 
-    // delete book
     app.delete("/api/books/:id", verifyLibrarianOrInternal, async (req, res) => {
       try {
         const result = await addBooksCollection.deleteOne({ _id: new ObjectId(req.params.id) });
@@ -183,7 +174,6 @@ async function run() {
       }
     });
 
-    // unpublish book
     app.patch("/api/books/unpublish/:id", verifyLibrarianOrInternal, async (req, res) => {
       const result = await addBooksCollection.updateOne(
         { _id: new ObjectId(req.params.id) },
@@ -192,7 +182,6 @@ async function run() {
       res.send(result);
     });
 
-    // edit book
     app.patch("/api/books/:id", verifyLibrarianOrInternal, async (req, res) => {
       try {
         const { id } = req.params;
@@ -220,13 +209,11 @@ async function run() {
       }
     });
 
-    // delete user (admin only)
     app.delete("/api/users/:id", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const { id } = req.params;
 
         let result;
-        // Try better-auth 'user' collection first
         if (ObjectId.isValid(id)) {
           result = await betterAuthUsersCollection.deleteOne({ _id: new ObjectId(id) });
         }
@@ -251,32 +238,27 @@ async function run() {
       }
     });
 
-    // User Dashboard - Overview (total books read, pending deliveries, total spent, charts)
     app.get("/api/dashboard/user/:userId", async (req, res) => {
       try {
         const { userId } = req.params;
         const userObjectId = ObjectId.isValid(userId) ? new ObjectId(userId) : null;
 
-        // Total books read (delivered or returned)
         const booksRead = await deliveriesCollection.countDocuments({
           $or: [{ userId: userId }, { userId: userObjectId }],
           status: { $in: ["Delivered", "Returned"] }
         });
 
-        // Pending deliveries count
         const pendingDeliveries = await deliveriesCollection.countDocuments({
           $or: [{ userId: userId }, { userId: userObjectId }],
           status: "Pending"
         });
 
-        // Total delivery fees spent
         const spentResult = await deliveriesCollection.aggregate([
           { $match: { $or: [{ userId: userId }, { userId: userObjectId }] } },
           { $group: { _id: null, totalSpent: { $sum: "$deliveryFee" } } }
         ]).toArray();
         const totalSpent = spentResult[0]?.totalSpent || 0;
 
-        // Reading stats for chart (books per month)
         const readingChart = await deliveriesCollection.aggregate([
           { $match: { $or: [{ userId: userId }, { userId: userObjectId }], status: "Delivered" } },
           { $group: { _id: { $month: "$requestDate" }, count: { $sum: 1 } } },
@@ -284,7 +266,6 @@ async function run() {
           { $project: { month: "$_id", count: 1, _id: 0 } }
         ]).toArray();
 
-        // Delivery status chart
         const deliveryChart = await deliveriesCollection.aggregate([
           { $match: { $or: [{ userId: userId }, { userId: userObjectId }] } },
           { $group: { _id: "$status", count: { $sum: 1 } } },
@@ -298,7 +279,6 @@ async function run() {
       }
     });
 
-    // User Dashboard - Delivery History
     app.get("/api/dashboard/user/:userId/deliveries", async (req, res) => {
       try {
         const { userId } = req.params;
@@ -308,7 +288,6 @@ async function run() {
           $or: [{ userId: userId }, { userId: userObjectId }]
         }).sort({ requestDate: -1 }).toArray();
 
-        // Populate book titles
         const results = await Promise.all(deliveries.map(async (delivery) => {
           const book = await addBooksCollection.findOne({ _id: new ObjectId(delivery.bookId) });
           return {
@@ -326,7 +305,6 @@ async function run() {
       }
     });
 
-    // User Dashboard - My Reading List (delivered or returned books)
     app.get("/api/dashboard/user/:userId/reading-list", async (req, res) => {
       try {
         const { userId } = req.params;
@@ -347,7 +325,6 @@ async function run() {
       }
     });
 
-    // User Dashboard - My Reviews (list all reviews by user)
     app.get("/api/dashboard/user/:userId/reviews", async (req, res) => {
       try {
         const { userId } = req.params;
@@ -357,7 +334,6 @@ async function run() {
           $or: [{ userId: userId }, { userId: userObjectId }]
         }).sort({ createdAt: -1 }).toArray();
 
-        // Populate book titles
         const results = await Promise.all(reviews.map(async (review) => {
           const book = await addBooksCollection.findOne({ _id: new ObjectId(review.bookId) });
           return { ...review, bookTitle: book?.title || "Unknown Book" };
@@ -370,7 +346,6 @@ async function run() {
       }
     });
 
-    // User Dashboard - Edit review
     app.put("/api/dashboard/user/:userId/reviews/:reviewId", verifyToken, async (req, res) => {
       try {
         const { reviewId } = req.params;
@@ -392,7 +367,6 @@ async function run() {
       }
     });
 
-    // User Dashboard - Delete review
     app.delete("/api/dashboard/user/:userId/reviews/:reviewId", verifyToken, async (req, res) => {
       try {
         const { reviewId } = req.params;
@@ -409,9 +383,7 @@ async function run() {
       }
     });
 
-    // Create a new delivery record (after successful payment)
     app.post("/api/deliveries", (req, res, next) => {
-      // Allow server-to-server calls (e.g. Stripe success page) via internal secret
       if (req.headers["x-internal-secret"] === process.env.INTERNAL_SECRET) return next();
       return verifyToken(req, res, next);
     }, async (req, res) => {
@@ -451,14 +423,12 @@ async function run() {
       }
     });
 
-    // Get all deliveries (for librarian - by librarianEmail)
     app.get("/api/deliveries", verifyToken, verifyLibrarian, async (req, res) => {
       try {
         const { librarianEmail } = req.query;
 
         let deliveries;
         if (librarianEmail) {
-          // Get all book IDs belonging to this librarian for a comprehensive match
           const librarianBooks = await addBooksCollection
             .find({ librarianEmail }, { projection: { _id: 1 } })
             .toArray();
@@ -507,7 +477,6 @@ async function run() {
       }
     });
 
-    // Check if a user already has an active delivery for a book
     app.get("/api/deliveries/check", async (req, res) => {
       try {
         const { userId, userEmail, bookId } = req.query;
@@ -528,7 +497,6 @@ async function run() {
       }
     });
 
-    // Update delivery status
     app.patch("/api/deliveries/:id", verifyToken, verifyLibrarian, async (req, res) => {
       try {
         const { status } = req.body;
@@ -542,7 +510,6 @@ async function run() {
       }
     });
 
-    // Librarian dashboard stats
     app.get("/api/dashboard/librarian/:librarianEmail/stats", verifyToken, verifyLibrarian, async (req, res) => {
       try {
         const { librarianEmail } = req.params;
@@ -572,13 +539,11 @@ async function run() {
       }
     });
 
-    // Get all users (merges better-auth 'user' collection + custom 'users' collection)
     app.get("/api/users", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const authUsers = await betterAuthUsersCollection.find().toArray();
         const customUsers = await usersCollection.find().toArray();
 
-        // Normalise better-auth users to the shape the admin page expects
         const normalised = authUsers.map((u) => ({
           _id: u._id,
           id: u.id || String(u._id),
@@ -588,7 +553,6 @@ async function run() {
           joinDate: u.createdAt,
         }));
 
-        // Merge custom users that don't exist in better-auth (by email)
         const authEmails = new Set(normalised.map((u) => u.email));
         const extras = customUsers
           .filter((u) => !authEmails.has(u.email))
@@ -601,7 +565,6 @@ async function run() {
       }
     });
 
-    // Create new user
     app.post("/api/users", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const { name, email, role, password } = req.body;
@@ -630,13 +593,11 @@ async function run() {
       }
     });
 
-    // Change user role
     app.patch("/api/users/:id/role", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const { id } = req.params;
         const { role } = req.body;
 
-        // Try better-auth 'user' collection first (by _id or id field)
         let result;
         if (ObjectId.isValid(id)) {
           result = await betterAuthUsersCollection.updateOne(
@@ -647,7 +608,6 @@ async function run() {
         if (!result || result.matchedCount === 0) {
           result = await betterAuthUsersCollection.updateOne({ id }, { $set: { role } });
         }
-        // Also try custom users collection
         if (!result || result.matchedCount === 0) {
           if (ObjectId.isValid(id)) {
             result = await usersCollection.updateOne({ _id: new ObjectId(id) }, { $set: { role } });
@@ -668,7 +628,6 @@ async function run() {
       }
     });
 
-    // Get all transactions/deliveries
     app.get("/api/transactions", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const deliveries = await deliveriesCollection.find().sort({ requestDate: -1 }).toArray();
@@ -696,7 +655,6 @@ async function run() {
       }
     });
 
-    // Publish book
     app.patch("/api/books/publish/:id", verifyAdminOrInternal, async (req, res) => {
       const result = await addBooksCollection.updateOne(
         { _id: new ObjectId(req.params.id) },
@@ -705,7 +663,6 @@ async function run() {
       res.send(result);
     });
 
-    // admin stats
     app.get("/api/admin/stats", verifyToken, verifyAdmin, async (req, res) => {
       try {
         const totalUsers = await usersCollection.countDocuments();
