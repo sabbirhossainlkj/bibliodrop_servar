@@ -1,12 +1,12 @@
 const express = require("express");
 const app = express();
-const port = 5000;
+const port = process.env.PORT;
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 
-app.use(cors({ origin: ["http://localhost:3000"], credentials: true }));
+app.use();
 app.use(express.json());
 app.use(cookieParser());
 
@@ -72,7 +72,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const database = client.db("BiblioDrop_db");
     const addBooksCollection = database.collection("books");
@@ -686,7 +686,7 @@ async function run() {
       }
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // await client.close();
